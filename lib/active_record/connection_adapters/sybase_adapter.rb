@@ -364,7 +364,20 @@ module ActiveRecord
       # DATABASE STATEMENTS ======================================
 
       def execute(sql, name = nil)
-        raw_execute(sql, name, :do)
+        exec_query(sql, name)
+      end
+
+      def exec_query(sql, name = 'SQL', binds = [])
+        result = nil
+
+        log(sql, name, binds) do
+          raise 'Connection is closed' unless active?
+
+          result = @connection.execute(sql)
+          return ActiveRecord::Result.new(result.fields, result.entries)
+        end
+      ensure
+        result.cancel
       end
 
       # Executes the given INSERT sql and returns the new record's ID
@@ -410,17 +423,6 @@ module ActiveRecord
           return false
         end
         true
-      end
-
-      def raw_execute(sql, name = nil, meth = nil)
-        result = nil
-        log(sql, name) do
-          raise 'Connection is closed' unless active?
-          result = @connection.execute(sql)
-          meth ? result.send(meth) : result
-        end
-      ensure
-        result.cancel
       end
 
       def select_rows(sql, name = nil)
